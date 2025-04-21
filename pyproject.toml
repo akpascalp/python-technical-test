@@ -10,7 +10,7 @@ python = "^3.10"
 fastapi = {extras = ["all"], version = "^0.110.1"}
 sqlalchemy = "^2.0.29"
 alembic = "^1.13.1"
-asyncpg = "^0.29.0"
+fastcrud = "^0.15.7"
 
 
 [tool.poetry.group.dev.dependencies]
