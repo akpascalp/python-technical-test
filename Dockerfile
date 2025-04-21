@@ -1,13 +1,18 @@
-FROM python:alpine3.19 as build
-COPY ./requirements.txt /requirements.txt
-RUN python -m venv /pyvenv && \
-    /pyvenv/bin/pip install --upgrade pip && \
-    /pyvenv/bin/pip install -r requirements.txt
+FROM python:alpine3.18 AS build
 
-FROM python:alpine3.19
-COPY ./app /app
-COPY --from=build /pyvenv /pyvenv
 WORKDIR /app
-RUN adduser --disabled-password appuser
+
+RUN pip install poetry==2.1.2
+
+COPY pyproject.toml poetry.lock ./
+
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-root && \
+    rm -rf /root/.cache/
+
+RUN adduser --disabled-password appuser && \
+    chown -R appuser:appuser /app
+
+ENV PYTHONPATH="/app"
+
 USER appuser
-ENV PATH="/pyvenv/bin:$PATH"

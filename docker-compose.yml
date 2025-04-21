@@ -7,10 +7,12 @@ services:
       context: .
     restart: unless-stopped
     command: >
-      sh -c "alembic upgrade head &&
-             export PYTHONPATH=/app:$PYTHONPATH &&
-             python scripts/init_db.py &&
-             uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+      sh -c "cd /app &&
+             python -m alembic upgrade head &&
+             python -m scripts.init_db &&
+             python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    environment:
+      - PYTHONPATH=/app
     ports:
       - 8000:8000
     volumes:
