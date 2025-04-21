@@ -1,6 +1,11 @@
 from datetime import date
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from infrastructure.schemas.group import GroupRead
 
 from pydantic import BaseModel, ConfigDict
+
+from .group import GroupRead
 
 
 class SiteBase(BaseModel):
@@ -9,7 +14,6 @@ class SiteBase(BaseModel):
     max_power_megawatt: float | None = None
     min_power_megawatt: float | None = None
     useful_energy_at_1_megawatt: float | None = None
-    groups: list[int] | None = None
 
 
 class SiteRead(SiteBase):
@@ -33,3 +37,10 @@ class Site(SiteBase):
     model_config = ConfigDict(from_attributes=True)
     
     id: int
+
+
+class SiteWithGroups(SiteBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    groups: list["GroupRead"] = []

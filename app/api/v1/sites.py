@@ -5,9 +5,14 @@ from enum import Enum
 from fastapi import APIRouter, Depends, Query, HTTPException, Path
 from fastcrud.paginated import PaginatedListResponse, compute_offset, paginated_response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
+from sqlalchemy import select
+from infrastructure.models.site import Site as SiteModel
+from infrastructure.models.group import Group
 
 from infrastructure.db import get_session
-from infrastructure.schemas.site import SiteRead, Site, SiteBase
+from infrastructure.schemas.site import SiteRead, Site, SiteBase, SiteWithGroups
 from infrastructure.crud.crud_sites import site_crud
 
 router = APIRouter()
@@ -67,15 +72,25 @@ async def read_sites(
     return response
 
 
-@router.get("/{site_id}", response_model=SiteRead)
+@router.get("/{site_id}", response_model=SiteWithGroups)
 async def read_site(
     site_id: int = Path(..., title="The ID of the site to get"),
     db: AsyncSession = Depends(get_session),
-) -> Site:
+) -> SiteWithGroups:
     """
     Get a specific site by ID.
     """
-    site = await site_crud.get(db=db, id=site_id)
+    # FastCRUD not working with joined, why?
+    # site = await site_crud.get_multi_joined(
+    #     db=db,
+    #     id=site_id,
+    #     schema_to_select=SiteRead,
+    #     joins_config=joins_config
+    # )
+    result = await db.execute(
+        select(SiteModel).options(selectinload(SiteModel.groups)).where(SiteModel.id == site_id)
+    )
+    site = result.unique().scalar_one_or_none()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
     return site
@@ -131,3 +146,58 @@ async def delete_site(
     
     await site_crud.delete(db=db, id=site_id)
     return {"message": "Site deleted successfully"}
+
+
+@router.post("/{site_id}/groups/{group_id}", status_code=204)
+async def add_site_to_group(
+    site_id: int = Path(..., title="The ID of the site"),
+    group_id: int = Path(..., title="The ID of the group"),
+    db: AsyncSession = Depends(get_session),
+) -> None:
+    """
+    Add a site to a group.
+    """
+    site = await db.execute(
+        select(SiteModel).options(joinedload(SiteModel.groups)).where(SiteModel.id == site_id)
+    )
+    site = site.unique().scalar_one_or_none()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group not in site.groups:
+        site.groups.append(group)
+        await db.commit()
+        await db.refresh(site)
+        
+    return None
+
+@router.delete("/{site_id}/groups/{group_id}", status_code=204)
+async def remove_site_from_group(
+    site_id: int = Path(..., title="The ID of the site"),
+    group_id: int = Path(..., title="The ID of the group"),
+    db: AsyncSession = Depends(get_session),
+) -> None:
+    """
+    Remove a site from a group.
+    """
+    site = await db.execute(
+        select(SiteModel).options(joinedload(SiteModel.groups)).where(SiteModel.id == site_id)
+    )
+    site = site.unique().scalar_one_or_none()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group in site.groups:
+        site.groups.remove(group)
+        await db.commit()
+        await db.refresh(site)
+        
+    return None
