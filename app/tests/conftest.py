@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 
 from main import app
 from infrastructure.models.site import Site
+from infrastructure.models.group import Group, GroupType
 from infrastructure.db import Base
 
 @pytest.fixture(scope="session")
@@ -70,6 +71,13 @@ def generate_site_data(index: int) -> dict:
         "useful_energy_at_1_megawatt": fake.pyfloat(min_value=0.6, max_value=0.95, right_digits=2),
     }
 
+def generate_group_data(index: int) -> dict:
+    """Generate fake data for a group."""
+    return {
+        "name": f"Group {index}",
+        "type": fake.random_element(elements=(GroupType.GROUP1, GroupType.GROUP2, GroupType.GROUP3)),
+    }
+
 @pytest_asyncio.fixture
 async def sample_sites(db: AsyncSession) -> list[Site]:
     """Create sample sites for testing with Faker."""
@@ -81,3 +89,15 @@ async def sample_sites(db: AsyncSession) -> list[Site]:
         await db.refresh(site)
     
     return sites
+
+@pytest_asyncio.fixture
+async def sample_groups(db: AsyncSession) -> list[Group]:
+    """Create sample groups for testing with Faker."""
+    groups = [Group(**generate_group_data(index=index)) for index in range(5)]
+    db.add_all(groups)
+    await db.commit()
+    
+    for group in groups:
+        await db.refresh(group)
+    
+    return groups

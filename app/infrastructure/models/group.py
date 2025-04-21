@@ -5,7 +5,7 @@ import enum
 from ..db import Base
 from .associations import site_group
 
-class GroupType(enum.Enum):
+class GroupType(str, enum.Enum):
     GROUP1 = "group1"
     GROUP2 = "group2" 
     GROUP3 = "group3"
