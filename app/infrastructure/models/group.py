@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 import enum
 
-from app.infrastructure.db import Base
+from ..db import Base
+from .associations import site_group
 
 class GroupType(enum.Enum):
     GROUP1 = "group1"
@@ -18,7 +19,7 @@ class Group(Base):
     name = Column(String, index=True, nullable=False)
     type = Column(Enum(GroupType), nullable=True)
 
-    site_id = Column(Integer, ForeignKey("sites.id"))
+    parent_id = Column(Integer, ForeignKey("groups.id"))
+    children = relationship("Group", backref="parent", remote_side=[id])
 
-    site = relationship("Site", back_populates="groups")
-    users = relationship("User", back_populates="group")
+    sites = relationship("Site", secondary=site_group, back_populates="groups")

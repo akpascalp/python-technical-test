@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, Float, String, Boolean, Date
+from sqlalchemy import Column, Integer, Float, String, Date
 from sqlalchemy.orm import relationship
 
-from app.infrastructure.db import Base
+from .associations import site_group
+from ..db import Base
 
 
 class Site(Base):
@@ -16,4 +17,4 @@ class Site(Base):
     min_power_megawatt = Column(Float, nullable=True)
     userful_energy_at_1_megawatt = Column(Float, nullable=True)
 
-    groups = relationship("Group", back_populates="site")
+    groups = relationship("Group", secondary=site_group, back_populates="sites")
