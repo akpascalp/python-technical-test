@@ -25,7 +25,7 @@ async def generate_seed_data(session: AsyncSession):
             installation_date=date.today() - timedelta(days=random.randint(1, 1000)),
             max_power_megawatt=random.uniform(10.0, 50.0),
             min_power_megawatt=random.uniform(1.0, 5.0),
-            userful_energy_at_1_megawatt=random.uniform(0.7, 0.95),
+            useful_energy_at_1_megawatt=random.uniform(0.7, 0.95),
         )
         for i in range(1, 11)
     ]

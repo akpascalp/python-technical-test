@@ -67,7 +67,7 @@ def generate_site_data(index: int) -> dict:
         "installation_date": installation_date,
         "max_power_megawatt": max_power,
         "min_power_megawatt": min_power,
-        "userful_energy_at_1_megawatt": fake.pyfloat(min_value=0.6, max_value=0.95, right_digits=2),
+        "useful_energy_at_1_megawatt": fake.pyfloat(min_value=0.6, max_value=0.95, right_digits=2),
     }
 
 @pytest_asyncio.fixture

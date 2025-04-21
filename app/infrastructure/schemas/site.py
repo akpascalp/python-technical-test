@@ -8,10 +8,28 @@ class SiteBase(BaseModel):
     installation_date: date | None = None
     max_power_megawatt: float | None = None
     min_power_megawatt: float | None = None
-    userful_energy_at_1_megawatt: float | None = None
+    useful_energy_at_1_megawatt: float | None = None
     groups: list[int] | None = None
 
 
 class SiteRead(SiteBase):
     model_config = ConfigDict(from_attributes=True)
+    id: int
+
+
+class SiteCreate(SiteBase):
+    pass
+
+
+class SiteUpdate(BaseModel):
+    name: str | None = None
+    installation_date: date | None = None
+    max_power_megawatt: float | None = None
+    min_power_megawatt: float | None = None
+    useful_energy_at_1_megawatt: float | None = None
+
+
+class Site(SiteBase):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
