@@ -17,6 +17,10 @@ fastcrud = "^0.15.7"
 black = "^24.3.0"
 isort = "^5.13.2"
 ruff = "^0.3.7"
+pytest = "^8.3.5"
+pytest-asyncio = "^0.26.0"
+pytest-cov = "^6.1.1"
+faker = "^37.1.0"
 
 [build-system]
 requires = ["poetry-core"]
