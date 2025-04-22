@@ -9,11 +9,13 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from infrastructure.models.site import Site as SiteModel
+from infrastructure.models.site import SiteFrance, SiteItaly
+from infrastructure.models.site import SiteCountry
 from infrastructure.models.group import Group
 
 from infrastructure.db import get_session
-from infrastructure.schemas.site import SiteRead, Site, SiteBase, SiteWithGroups
-from infrastructure.crud.crud_sites import site_crud
+from infrastructure.schemas.site import SiteRead, Site, SiteBase, SiteWithGroups, SiteFranceCreate, SiteItalyCreate
+from infrastructure.crud.crud_sites import site_crud, site_france_crud, site_italy_crud
 
 router = APIRouter()
 
@@ -21,7 +23,8 @@ class SortOrder(str, Enum):
     asc = "asc"
     desc = "desc"
 
-@router.get("/", response_model=PaginatedListResponse[SiteRead])
+
+@router.get("/", response_model=PaginatedListResponse[SiteWithGroups])
 async def read_sites(
     db: AsyncSession = Depends(get_session),
     page: int = 1,
@@ -33,6 +36,7 @@ async def read_sites(
     installation_date_from: date | None = None,
     installation_date_to: date | None = None,
     useful_energy_at_1_megawatt: float | None = None,
+    efficiency: float | None = None,
     sort_by: str | None = Query(None, description="Field to sort by"),
     sort_order: SortOrder = SortOrder.desc,
 ) -> dict:
@@ -52,6 +56,9 @@ async def read_sites(
 
     if useful_energy_at_1_megawatt is not None:
         filters["useful_energy_at_1_megawatt"] = useful_energy_at_1_megawatt
+    
+    if efficiency is not None:
+        filters["efficiency"] = efficiency
 
     if installation_date_from is not None:
         filters["installation_date__gte"] = installation_date_from
@@ -67,6 +74,13 @@ async def read_sites(
         sort_orders=[sort_order] if sort_by else [],
         **filters
     )
+    for site in sites_data["data"]:
+        if site["country"] == SiteCountry.FRANCE:
+            data = await site_france_crud.get(db=db, id=site["id"])
+            site["useful_energy_at_1_megawatt"] = data["useful_energy_at_1_megawatt"]
+        elif site["country"] == SiteCountry.ITALY:
+            data = await site_italy_crud.get(db=db, id=site["id"])
+            site["efficiency"] = data["efficiency"]
 
     response: dict[str, Any] = paginated_response(crud_data=sites_data, page=page, items_per_page=items_per_page)
     return response
@@ -91,22 +105,56 @@ async def read_site(
         select(SiteModel).options(selectinload(SiteModel.groups)).where(SiteModel.id == site_id)
     )
     site = result.unique().scalar_one_or_none()
+    if site.country == SiteCountry.FRANCE:
+        data = await site_france_crud.get(db=db, id=site.id)
+        site.useful_energy_at_1_megawatt = data["useful_energy_at_1_megawatt"]
+    elif site.country == SiteCountry.ITALY:
+        data = await site_italy_crud.get(db=db, id=site.id)
+        site.efficiency = data["efficiency"]
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
     return site
 
 
 
-@router.post("/", response_model=SiteRead, status_code=201)
-async def create_site(
-    site: SiteBase,
+@router.post("/france", response_model=SiteRead, status_code=201)
+async def create_site_france(
+    site: SiteFranceCreate,
     db: AsyncSession = Depends(get_session),
 ) -> Site:
     """
-    Create a new site.
+    Create a new french site.
     """
-    # TODO verify site creation rules (e.g. min_power < max_power)
-    return await site_crud.create(db=db, object=site)
+    if site.installation_date:
+        existing_sites = await db.execute(
+            select(SiteFrance).where(SiteFrance.installation_date == site.installation_date)
+        )
+        if existing_sites.scalars().first():
+            raise HTTPException(
+                status_code=422,
+                detail="Only one French site can be installed per day"
+            )
+
+    return await site_france_crud.create(db=db, object=site)
+
+
+@router.post("/italy", response_model=SiteRead, status_code=201)
+async def create_site_italy(
+    site: SiteItalyCreate,
+    db: AsyncSession = Depends(get_session),
+) -> Site:
+    """
+    Create a new italian site.
+    """
+    if site.installation_date:
+        weekday = site.installation_date.weekday()
+        if weekday < 5:
+            raise HTTPException(
+                status_code=422,
+                detail="Italian sites must be installed on weekends"
+            )
+
+    return await site_italy_crud.create(db=db, object=site)
 
 
 @router.patch("/{site_id}", response_model=SiteRead)

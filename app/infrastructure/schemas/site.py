@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from infrastructure.schemas.group import GroupRead
 
 from pydantic import BaseModel, ConfigDict
+from infrastructure.models.site import SiteCountry
 
 from .group import GroupRead
 
@@ -13,16 +14,39 @@ class SiteBase(BaseModel):
     installation_date: date | None = None
     max_power_megawatt: float | None = None
     min_power_megawatt: float | None = None
+    country: SiteCountry | None = None
+
+
+class SiteFranceBase(SiteBase):
+    country: SiteCountry = SiteCountry.FRANCE
     useful_energy_at_1_megawatt: float | None = None
 
 
-class SiteRead(SiteBase):
+class SiteItalyBase(SiteBase):
+    country: SiteCountry = SiteCountry.ITALY
+    efficiency: float | None = None
+
+
+class SiteFranceRead(SiteFranceBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
 
 
-class SiteCreate(SiteBase):
+class SiteItalyRead(SiteItalyBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+
+
+class SiteFranceCreate(SiteFranceBase):
     pass
+
+
+class SiteItalyCreate(SiteItalyBase):
+    pass
+
+
+SiteCreate = SiteFranceCreate | SiteItalyCreate
+SiteRead = SiteFranceRead | SiteItalyRead
 
 
 class SiteUpdate(BaseModel):
@@ -31,16 +55,26 @@ class SiteUpdate(BaseModel):
     max_power_megawatt: float | None = None
     min_power_megawatt: float | None = None
     useful_energy_at_1_megawatt: float | None = None
+    efficiency: float | None = None
 
 
 class Site(SiteBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
+    useful_energy_at_1_megawatt: float | None = None
+    efficiency: float | None = None
 
 
-class SiteWithGroups(SiteBase):
+class SiteWithGroups(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     id: int
+    name: str
+    installation_date: date | None = None
+    max_power_megawatt: float | None = None
+    min_power_megawatt: float | None = None
+    country: SiteCountry
+    useful_energy_at_1_megawatt: float | None = None
+    efficiency: float | None = None
     groups: list["GroupRead"] = []
