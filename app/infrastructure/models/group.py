@@ -5,16 +5,18 @@ import enum
 from ..db import Base
 from .associations import site_group
 
+
 class GroupType(str, enum.Enum):
     GROUP1 = "group1"
-    GROUP2 = "group2" 
+    GROUP2 = "group2"
     GROUP3 = "group3"
+
 
 class Group(Base):
     """Group model."""
-    
+
     __tablename__ = "groups"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
     type = Column(Enum(GroupType), nullable=True)

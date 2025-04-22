@@ -1,5 +1,6 @@
 from datetime import date
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from infrastructure.schemas.group import GroupRead
 
@@ -68,7 +69,7 @@ class Site(SiteBase):
 
 class SiteWithGroups(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     name: str
     installation_date: date | None = None

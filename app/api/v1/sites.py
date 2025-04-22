@@ -9,15 +9,23 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from infrastructure.models.site import Site as SiteModel
-from infrastructure.models.site import SiteFrance, SiteItaly
+from infrastructure.models.site import SiteFrance
 from infrastructure.models.site import SiteCountry
 from infrastructure.models.group import Group
 
 from infrastructure.db import get_session
-from infrastructure.schemas.site import SiteRead, Site, SiteBase, SiteWithGroups, SiteFranceCreate, SiteItalyCreate
+from infrastructure.schemas.site import (
+    SiteRead,
+    Site,
+    SiteBase,
+    SiteWithGroups,
+    SiteFranceCreate,
+    SiteItalyCreate,
+)
 from infrastructure.crud.crud_sites import site_crud, site_france_crud, site_italy_crud
 
 router = APIRouter()
+
 
 class SortOrder(str, Enum):
     asc = "asc"
@@ -47,7 +55,7 @@ async def read_sites(
 
     if name is not None:
         filters["name"] = name
-        
+
     if max_power_megawatt is not None:
         filters["max_power_megawatt"] = max_power_megawatt
 
@@ -56,13 +64,13 @@ async def read_sites(
 
     if useful_energy_at_1_megawatt is not None:
         filters["useful_energy_at_1_megawatt"] = useful_energy_at_1_megawatt
-    
+
     if efficiency is not None:
         filters["efficiency"] = efficiency
 
     if installation_date_from is not None:
         filters["installation_date__gte"] = installation_date_from
-        
+
     if installation_date_to is not None:
         filters["installation_date__lte"] = installation_date_to
 
@@ -82,7 +90,9 @@ async def read_sites(
             data = await site_italy_crud.get(db=db, id=site["id"])
             site["efficiency"] = data["efficiency"]
 
-    response: dict[str, Any] = paginated_response(crud_data=sites_data, page=page, items_per_page=items_per_page)
+    response: dict[str, Any] = paginated_response(
+        crud_data=sites_data, page=page, items_per_page=items_per_page
+    )
     return response
 
 
@@ -116,11 +126,9 @@ async def read_site(
     return site
 
 
-
 @router.post("/france", response_model=SiteRead, status_code=201)
 async def create_site_france(
-    site: SiteFranceCreate,
-    db: AsyncSession = Depends(get_session),
+    site: SiteFranceCreate, db: AsyncSession = Depends(get_session)
 ) -> Site:
     """
     Create a new french site.
@@ -131,18 +139,14 @@ async def create_site_france(
         )
         if existing_sites.scalars().first():
             raise HTTPException(
-                status_code=422,
-                detail="Only one French site can be installed per day"
+                status_code=422, detail="Only one French site can be installed per day"
             )
 
     return await site_france_crud.create(db=db, object=site)
 
 
 @router.post("/italy", response_model=SiteRead, status_code=201)
-async def create_site_italy(
-    site: SiteItalyCreate,
-    db: AsyncSession = Depends(get_session),
-) -> Site:
+async def create_site_italy(site: SiteItalyCreate, db: AsyncSession = Depends(get_session)) -> Site:
     """
     Create a new italian site.
     """
@@ -150,8 +154,7 @@ async def create_site_italy(
         weekday = site.installation_date.weekday()
         if weekday < 5:
             raise HTTPException(
-                status_code=422,
-                detail="Italian sites must be installed on weekends"
+                status_code=422, detail="Italian sites must be installed on weekends"
             )
 
     return await site_italy_crud.create(db=db, object=site)
@@ -171,11 +174,7 @@ async def update_site(
         raise HTTPException(status_code=404, detail="Site not found")
 
     updated_site = await site_crud.update(
-        db=db,
-        object=site_update,
-        id=site_id,
-        return_as_model=True,
-        schema_to_select=SiteRead,
+        db=db, object=site_update, id=site_id, return_as_model=True, schema_to_select=SiteRead
     )
     return updated_site
 
@@ -191,7 +190,7 @@ async def delete_site(
     site = await site_crud.get(db=db, id=site_id)
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-    
+
     await site_crud.delete(db=db, id=site_id)
     return {"message": "Site deleted successfully"}
 
@@ -220,8 +219,9 @@ async def add_site_to_group(
         site.groups.append(group)
         await db.commit()
         await db.refresh(site)
-        
+
     return None
+
 
 @router.delete("/{site_id}/groups/{group_id}", status_code=204)
 async def remove_site_from_group(
@@ -247,5 +247,5 @@ async def remove_site_from_group(
         site.groups.remove(group)
         await db.commit()
         await db.refresh(site)
-        
+
     return None

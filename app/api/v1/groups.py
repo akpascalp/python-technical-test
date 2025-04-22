@@ -13,9 +13,11 @@ from infrastructure.models.group import Group, GroupType
 
 router = APIRouter()
 
+
 class SortOrder(str, Enum):
     asc = "asc"
     desc = "desc"
+
 
 @router.get("/", response_model=PaginatedListResponse[GroupRead])
 async def read_groups(
@@ -35,7 +37,7 @@ async def read_groups(
 
     if name is not None:
         filters["name"] = name
-        
+
     if type is not None:
         filters["type"] = type
 
@@ -48,7 +50,9 @@ async def read_groups(
         **filters
     )
 
-    response: dict[str, Any] = paginated_response(crud_data=groups_data, page=page, items_per_page=items_per_page)
+    response: dict[str, Any] = paginated_response(
+        crud_data=groups_data, page=page, items_per_page=items_per_page
+    )
     return response
 
 
@@ -78,17 +82,12 @@ async def read_group_children(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
-    children = await db.execute(
-        select(Group).where(Group.parent_id == group_id)
-    )
+    children = await db.execute(select(Group).where(Group.parent_id == group_id))
     return children.scalars().all()
 
 
 @router.post("/", response_model=GroupRead, status_code=201)
-async def create_group(
-    group: GroupBase,
-    db: AsyncSession = Depends(get_session),
-) -> Group:
+async def create_group(group: GroupBase, db: AsyncSession = Depends(get_session)) -> Group:
     """
     Create a new group.
     """
@@ -110,11 +109,7 @@ async def update_group(
         raise HTTPException(status_code=404, detail="Group not found")
 
     updated_group = await group_crud.update(
-        db=db,
-        object=group_update,
-        id=group_id,
-        return_as_model=True,
-        schema_to_select=GroupRead,
+        db=db, object=group_update, id=group_id, return_as_model=True, schema_to_select=GroupRead
     )
     return updated_group
 
@@ -130,10 +125,9 @@ async def delete_group(
     group = await group_crud.get(db=db, id=group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
+
     await group_crud.delete(db=db, id=group_id)
     return {"message": "Group deleted successfully"}
-
 
 
 @router.post("/{parent_id}/children/{child_id}", status_code=204)
@@ -148,23 +142,23 @@ async def add_child_to_group(
     parent = await db.get(Group, parent_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Parent group not found")
-    
+
     child = await db.get(Group, child_id)
     if not child:
         raise HTTPException(status_code=404, detail="Child group not found")
 
     if parent_id == child_id:
         raise HTTPException(status_code=422, detail="A group cannot be its own child")
-    
+
     current = parent
     while current and current.parent_id:
         if current.parent_id == child_id:
             raise HTTPException(
-                status_code=422, 
-                detail="Creating this relationship would introduce a cycle in the hierarchy"
+                status_code=422,
+                detail="Creating this relationship would introduce a cycle in the hierarchy",
             )
         current = await db.get(Group, current.parent_id)
-    
+
     child.parent_id = parent_id
     await db.commit()
     return None
@@ -182,13 +176,12 @@ async def remove_child_from_group(
     child = await db.get(Group, child_id)
     if not child:
         raise HTTPException(status_code=404, detail="Child group not found")
-    
+
     if child.parent_id != parent_id:
         raise HTTPException(
-            status_code=422, 
-            detail="This group is not a child of the specified parent"
+            status_code=422, detail="This group is not a child of the specified parent"
         )
-    
+
     child.parent_id = None
     await db.commit()
     return None

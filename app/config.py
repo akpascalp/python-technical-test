@@ -11,17 +11,14 @@ class Settings(BaseSettings):
     postgres_db: str | None = None
     postgres_user: str | None = None
     postgres_password: str | None = None
-    
+
     pgadmin_default_email: str | None = None
     pgadmin_default_password: str | None = None
     pgadmin_listen_port: str | None = None
-    
+
     pythonpath: str | None = None
 
-    model_config = {
-        "env_file": ".env",
-        "extra": "ignore"
-    }
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 @lru_cache
