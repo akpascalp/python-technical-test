@@ -9,7 +9,6 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from infrastructure.models.site import Site as SiteModel
-from infrastructure.models.site import SiteFrance
 from infrastructure.models.site import SiteCountry
 from infrastructure.models.group import Group
 
@@ -23,6 +22,12 @@ from infrastructure.schemas.site import (
     SiteItalyCreate,
 )
 from infrastructure.crud.crud_sites import site_crud, site_france_crud, site_italy_crud
+from infrastructure.services.site_service import (
+    create_french_site,
+    create_italian_site,
+    update_site,
+)
+
 
 router = APIRouter()
 
@@ -83,10 +88,10 @@ async def read_sites(
         **filters
     )
     for site in sites_data["data"]:
-        if site["country"] == SiteCountry.FRANCE:
+        if site["country"] == SiteCountry.france:
             data = await site_france_crud.get(db=db, id=site["id"])
             site["useful_energy_at_1_megawatt"] = data["useful_energy_at_1_megawatt"]
-        elif site["country"] == SiteCountry.ITALY:
+        elif site["country"] == SiteCountry.italy:
             data = await site_italy_crud.get(db=db, id=site["id"])
             site["efficiency"] = data["efficiency"]
 
@@ -117,10 +122,10 @@ async def read_site(
     site = result.unique().scalar_one_or_none()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-    if site.country == SiteCountry.FRANCE:
+    if site.country == SiteCountry.france:
         data = await site_france_crud.get(db=db, id=site.id)
         site.useful_energy_at_1_megawatt = data["useful_energy_at_1_megawatt"]
-    elif site.country == SiteCountry.ITALY:
+    elif site.country == SiteCountry.italy:
         data = await site_italy_crud.get(db=db, id=site.id)
         site.efficiency = data["efficiency"]
     return site
@@ -130,53 +135,24 @@ async def read_site(
 async def create_site_france(
     site: SiteFranceCreate, db: AsyncSession = Depends(get_session)
 ) -> Site:
-    """
-    Create a new french site.
-    """
-    if site.installation_date:
-        existing_sites = await db.execute(
-            select(SiteFrance).where(SiteFrance.installation_date == site.installation_date)
-        )
-        if existing_sites.scalars().first():
-            raise HTTPException(
-                status_code=422, detail="Only one French site can be installed per day"
-            )
-
-    return await site_france_crud.create(db=db, object=site)
+    """Create a new french site."""
+    return await create_french_site(db, site)
 
 
 @router.post("/italy", response_model=SiteRead, status_code=201)
 async def create_site_italy(site: SiteItalyCreate, db: AsyncSession = Depends(get_session)) -> Site:
-    """
-    Create a new italian site.
-    """
-    if site.installation_date:
-        weekday = site.installation_date.weekday()
-        if weekday < 5:
-            raise HTTPException(
-                status_code=422, detail="Italian sites must be installed on weekends"
-            )
-
-    return await site_italy_crud.create(db=db, object=site)
+    """Create a new italian site."""
+    return await create_italian_site(db, site)
 
 
 @router.patch("/{site_id}", response_model=SiteRead)
-async def update_site(
+async def update_site_endpoint(
     site_update: SiteBase,
     site_id: int = Path(..., title="The ID of the site to update"),
     db: AsyncSession = Depends(get_session),
 ) -> Site:
-    """
-    Update a site.
-    """
-    site = await site_crud.get(db=db, id=site_id)
-    if not site:
-        raise HTTPException(status_code=404, detail="Site not found")
-
-    updated_site = await site_crud.update(
-        db=db, object=site_update, id=site_id, return_as_model=True, schema_to_select=SiteRead
-    )
-    return updated_site
+    """Update a site."""
+    return await update_site(db, site_id, site_update)
 
 
 @router.delete("/{site_id}")

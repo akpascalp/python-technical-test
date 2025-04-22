@@ -19,12 +19,12 @@ class SiteBase(BaseModel):
 
 
 class SiteFranceBase(SiteBase):
-    country: SiteCountry = SiteCountry.FRANCE
+    country: SiteCountry = SiteCountry.france
     useful_energy_at_1_megawatt: float | None = None
 
 
 class SiteItalyBase(SiteBase):
-    country: SiteCountry = SiteCountry.ITALY
+    country: SiteCountry = SiteCountry.italy
     efficiency: float | None = None
 
 
@@ -47,7 +47,8 @@ class SiteItalyCreate(SiteItalyBase):
 
 
 SiteCreate = SiteFranceCreate | SiteItalyCreate
-SiteRead = SiteFranceRead | SiteItalyRead
+class SiteRead(SiteFranceRead, SiteItalyRead):
+    pass
 
 
 class SiteUpdate(BaseModel):

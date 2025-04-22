@@ -1,3 +1,4 @@
+from typing import ClassVar
 from sqlalchemy import Column, Integer, Float, String, Date, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 import enum
@@ -7,8 +8,8 @@ from ..db import Base
 
 
 class SiteCountry(str, enum.Enum):
-    FRANCE = "france"
-    ITALY = "italy"
+    france = "france"
+    italy = "italy"
 
 
 class Site(Base):
@@ -24,7 +25,7 @@ class Site(Base):
 
     country = Column(Enum(SiteCountry), nullable=False)
 
-    __mapper_args__ = {"polymorphic_on": country, "polymorphic_identity": None}
+    __mapper_args__: ClassVar = {"polymorphic_on": country, "polymorphic_identity": None}
 
     groups = relationship("Group", secondary=site_group, back_populates="sites")
 
@@ -37,7 +38,7 @@ class SiteFrance(Site):
     id = Column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), primary_key=True)
     useful_energy_at_1_megawatt = Column(Float, nullable=True)
 
-    __mapper_args__ = {"polymorphic_identity": SiteCountry.FRANCE}
+    __mapper_args__: ClassVar = {"polymorphic_identity": SiteCountry.france}
 
 
 class SiteItaly(Site):
@@ -48,4 +49,4 @@ class SiteItaly(Site):
     id = Column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), primary_key=True)
     efficiency = Column(Float, nullable=True)
 
-    __mapper_args__ = {"polymorphic_identity": SiteCountry.ITALY}
+    __mapper_args__: ClassVar = {"polymorphic_identity": SiteCountry.italy}

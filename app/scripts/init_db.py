@@ -28,7 +28,7 @@ async def generate_seed_data(session: AsyncSession):
             max_power_megawatt=random.uniform(10.0, 50.0),
             min_power_megawatt=random.uniform(1.0, 5.0),
             useful_energy_at_1_megawatt=random.uniform(0.7, 0.95),
-            country=SiteCountry.FRANCE,
+            country=SiteCountry.france,
         )
         french_sites.append(french_site)
 
@@ -46,7 +46,7 @@ async def generate_seed_data(session: AsyncSession):
             max_power_megawatt=random.uniform(15.0, 60.0),
             min_power_megawatt=random.uniform(2.0, 8.0),
             efficiency=random.uniform(0.6, 0.9),
-            country=SiteCountry.ITALY,
+            country=SiteCountry.italy,
         )
         italian_sites.append(italian_site)
 
