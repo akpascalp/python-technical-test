@@ -4,6 +4,7 @@ from enum import Enum
 from fastapi import APIRouter, Depends, Query, HTTPException, Path
 from fastcrud.paginated import PaginatedListResponse, compute_offset, paginated_response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from infrastructure.db import get_session
 from infrastructure.schemas.group import GroupRead, GroupBase
@@ -65,6 +66,23 @@ async def read_group(
     return group
 
 
+@router.get("/{group_id}/children", response_model=list[GroupRead])
+async def read_group_children(
+    group_id: int = Path(..., title="The ID of the group to get children for"),
+    db: AsyncSession = Depends(get_session),
+) -> list[Group]:
+    """
+    Get all children of a specific group.
+    """
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    children = await db.execute(
+        select(Group).where(Group.parent_id == group_id)
+    )
+    return children.scalars().all()
+
 
 @router.post("/", response_model=GroupRead, status_code=201)
 async def create_group(
@@ -115,3 +133,62 @@ async def delete_group(
     
     await group_crud.delete(db=db, id=group_id)
     return {"message": "Group deleted successfully"}
+
+
+
+@router.post("/{parent_id}/children/{child_id}", status_code=204)
+async def add_child_to_group(
+    parent_id: int = Path(..., title="The ID of the parent group"),
+    child_id: int = Path(..., title="The ID of the child group to add"),
+    db: AsyncSession = Depends(get_session),
+) -> None:
+    """
+    Add a child group to a parent group.
+    """
+    parent = await db.get(Group, parent_id)
+    if not parent:
+        raise HTTPException(status_code=404, detail="Parent group not found")
+    
+    child = await db.get(Group, child_id)
+    if not child:
+        raise HTTPException(status_code=404, detail="Child group not found")
+
+    if parent_id == child_id:
+        raise HTTPException(status_code=422, detail="A group cannot be its own child")
+    
+    current = parent
+    while current and current.parent_id:
+        if current.parent_id == child_id:
+            raise HTTPException(
+                status_code=422, 
+                detail="Creating this relationship would introduce a cycle in the hierarchy"
+            )
+        current = await db.get(Group, current.parent_id)
+    
+    child.parent_id = parent_id
+    await db.commit()
+    return None
+
+
+@router.delete("/{parent_id}/children/{child_id}", status_code=204)
+async def remove_child_from_group(
+    parent_id: int = Path(..., title="The ID of the parent group"),
+    child_id: int = Path(..., title="The ID of the child group to remove"),
+    db: AsyncSession = Depends(get_session),
+) -> None:
+    """
+    Remove a child group from a parent group.
+    """
+    child = await db.get(Group, child_id)
+    if not child:
+        raise HTTPException(status_code=404, detail="Child group not found")
+    
+    if child.parent_id != parent_id:
+        raise HTTPException(
+            status_code=422, 
+            detail="This group is not a child of the specified parent"
+        )
+    
+    child.parent_id = None
+    await db.commit()
+    return None
