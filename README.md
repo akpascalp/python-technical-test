@@ -150,3 +150,19 @@ python-technical-test/
 ├── pyproject.toml              # Project configuration
 └── README.md                   # Project documentation
 ```
+
+
+### Next steps...
+- [ ] Fix unit tests
+- [ ] Improve unit tests coverage
+- [ ] Integration tests
+- [ ] Functionnal tests (end-to-end scenarios)
+- [ ] CI/CD:
+    - Automated tests after each commit with GitHub Acions for example
+    - Automated Deploiment (test environment and production envrionment)
+- [ ] Documentation
+    - add examples
+- [ ] Setup Monitoring and logging system for robustness
+- [ ] Improve Performance (SQL queries, caching, ...)
+- [ ] Security audit
+- [ ] Database backup system
