@@ -5,11 +5,15 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Path
 from fastcrud.paginated import PaginatedListResponse, compute_offset, paginated_response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload, with_polymorphic
 
 from infrastructure.db import get_session
 from infrastructure.schemas.group import GroupRead, GroupBase
+from infrastructure.schemas.site import SiteRead
 from infrastructure.crud.crud_groups import group_crud
 from infrastructure.models.group import Group, GroupType
+from infrastructure.models.site import Site, SiteFrance, SiteItaly
+from infrastructure.models.associations import site_group
 
 router = APIRouter()
 
@@ -84,6 +88,54 @@ async def read_group_children(
 
     children = await db.execute(select(Group).where(Group.parent_id == group_id))
     return children.scalars().all()
+
+
+@router.get("/{group_id}/sites", response_model=list[SiteRead])
+async def read_group_sites(
+    group_id: int = Path(..., title="The ID of the group to get sites for"),
+    db: AsyncSession = Depends(get_session),
+) -> list[dict]:
+    """
+    Get all sites of a specific group.
+    """
+    result_group = await db.execute(select(Group).where(Group.id == group_id))
+    group = result_group.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    PolymorphicSite = with_polymorphic(Site, [SiteFrance, SiteItaly])
+
+    result = await db.execute(
+        select(PolymorphicSite)
+        .options(selectinload(PolymorphicSite.groups))
+        .join(site_group, site_group.c.site_id == PolymorphicSite.id)
+        .where(site_group.c.group_id == group_id)
+    )
+    
+    sites = result.unique().scalars().all()
+
+    site_dicts = []
+    for site in sites:
+        site_dict = {
+            "id": site.id,
+            "name": site.name,
+            "installation_date": site.installation_date,
+            "max_power_megawatt": site.max_power_megawatt,
+            "min_power_megawatt": site.min_power_megawatt,
+            "country": site.country,
+            "groups": [{"id": g.id, "name": g.name, "type": g.type} for g in site.groups],
+            "efficiency": None,
+            "useful_energy_at_1_megawatt": None,
+        }
+
+        if isinstance(site, SiteFrance):
+            site_dict["useful_energy_at_1_megawatt"] = site.useful_energy_at_1_megawatt
+        elif isinstance(site, SiteItaly):
+            site_dict["efficiency"] = site.efficiency
+        
+        site_dicts.append(site_dict)
+    
+    return site_dicts
 
 
 @router.post("/", response_model=GroupRead, status_code=201)
