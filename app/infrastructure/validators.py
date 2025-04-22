@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from infrastructure.models.site import SiteFrance
+from infrastructure.models.group import Group, GroupType
 
 async def validate_french_site_date(
     db: AsyncSession, 
@@ -30,3 +31,14 @@ async def validate_italian_site_date(installation_date: date) -> bool:
     """
     weekday = installation_date.weekday()
     return weekday >= 5  # 5=saturday, 6=sunday
+
+
+async def validate_site_group_association(db: AsyncSession, site_id: int, group_id: int) -> bool:
+    """
+    Validate the association between a site and a group. Site can't be associated with a group of type GROUP3.
+    Return True if the association is valid, otherwise False.
+    """
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalars().first()
+
+    return group is not None and group.type != GroupType.GROUP3

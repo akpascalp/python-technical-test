@@ -26,6 +26,7 @@ from infrastructure.services.site_service import (
     create_french_site,
     create_italian_site,
     update_site,
+    add_site_to_group
 )
 
 
@@ -172,7 +173,7 @@ async def delete_site(
 
 
 @router.post("/{site_id}/groups/{group_id}", status_code=204)
-async def add_site_to_group(
+async def add_site_to_group_endpoint(
     site_id: int = Path(..., title="The ID of the site"),
     group_id: int = Path(..., title="The ID of the group"),
     db: AsyncSession = Depends(get_session),
@@ -180,22 +181,7 @@ async def add_site_to_group(
     """
     Add a site to a group.
     """
-    site = await db.execute(
-        select(SiteModel).options(joinedload(SiteModel.groups)).where(SiteModel.id == site_id)
-    )
-    site = site.unique().scalar_one_or_none()
-    if not site:
-        raise HTTPException(status_code=404, detail="Site not found")
-
-    group = await db.get(Group, group_id)
-    if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
-
-    if group not in site.groups:
-        site.groups.append(group)
-        await db.commit()
-        await db.refresh(site)
-
+    await add_site_to_group(db, site_id, group_id)
     return None
 
 

@@ -1,8 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import with_polymorphic, selectinload
 
-from infrastructure.validators import validate_french_site_date, validate_italian_site_date
-from infrastructure.models.site import SiteCountry
+from infrastructure.validators import (
+    validate_french_site_date,
+    validate_italian_site_date,
+    validate_site_group_association
+)
+from infrastructure.models.site import SiteCountry, Site, SiteFrance, SiteItaly
+from infrastructure.models.group import Group
 from infrastructure.schemas.site import SiteFranceCreate, SiteItalyCreate, SiteBase, SiteRead
 from infrastructure.crud.crud_sites import site_crud, site_france_crud, site_italy_crud
 
@@ -54,3 +61,35 @@ async def update_site(db: AsyncSession, site_id: int, site_update: SiteBase):
         db=db, object=site_update, id=site_id, return_as_model=True, schema_to_select=SiteRead
     )
     return updated_site
+
+
+async def add_site_to_group(db: AsyncSession, site_id: int, group_id: int):
+    valid = await validate_site_group_association(db, site_id, group_id)
+    if not valid:
+        raise HTTPException(
+            status_code=422, detail="Invalid association between site and group"
+        )
+    
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    PolymorphicSite = with_polymorphic(Site, [SiteFrance, SiteItaly])
+    
+    result = await db.execute(
+        select(PolymorphicSite)
+        .options(selectinload(PolymorphicSite.groups))
+        .where(PolymorphicSite.id == site_id)
+    )
+    
+    site_model = result.unique().scalar_one_or_none()
+    if not site_model:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    if group not in site_model.groups:
+        site_model.groups.append(group)
+        
+        await db.commit()
+
+    return None
