@@ -105,14 +105,14 @@ async def read_site(
         select(SiteModel).options(selectinload(SiteModel.groups)).where(SiteModel.id == site_id)
     )
     site = result.unique().scalar_one_or_none()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
     if site.country == SiteCountry.FRANCE:
         data = await site_france_crud.get(db=db, id=site.id)
         site.useful_energy_at_1_megawatt = data["useful_energy_at_1_megawatt"]
     elif site.country == SiteCountry.ITALY:
         data = await site_italy_crud.get(db=db, id=site.id)
         site.efficiency = data["efficiency"]
-    if not site:
-        raise HTTPException(status_code=404, detail="Site not found")
     return site
 
 
